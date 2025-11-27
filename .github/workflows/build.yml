@@ -16,17 +16,17 @@ jobs:
       id-token: write
       packages: write
     steps:
-      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@2023.2
+      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@main
         with:
           repository: openstack/nova
           ref: 2023.2-eol
 
-      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@2023.2
+      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@main
         with:
           repository: vexxhost/nova-scheduler-filters
           ref: 77ed1c2ca70f4166a6d0995c7d3d90822f0ca6c0
 
-      - uses: vexxhost/docker-atmosphere/.github/actions/build-image@2023.2
+      - uses: vexxhost/docker-atmosphere/.github/actions/build-image@main
         with:
           image-name: nova
           build-contexts: |
