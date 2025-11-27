@@ -23,7 +23,7 @@ RUN \
     useradd -u 42424 -g 42424 -M -d /var/lib/nova -s /usr/sbin/nologin -c "Nova User" nova && \
     mkdir -p /etc/nova /var/log/nova /var/lib/nova /var/cache/nova && \
     chown -Rv nova:nova /etc/nova /var/log/nova /var/lib/nova /var/cache/nova
-ADD https://github.com/novnc/noVNC.git#v1.6.0 /usr/share/novnc
+ADD https://github.com/novnc/noVNC.git#v1.4.0 /usr/share/novnc
 RUN <<EOF bash -xe
 apt-get update -qq
 apt-get install -qq -y --no-install-recommends \
