@@ -19,12 +19,12 @@ jobs:
       - uses: vexxhost/docker-atmosphere/.github/actions/checkout@main
         with:
           repository: openstack/nova
-          ref: 87bf7700b8e2adecdd854cd1607317048b6d86da
+          ref: 87bf7700b8e2adecdd854cd1607317048b6d86da # master
 
       - uses: vexxhost/docker-atmosphere/.github/actions/checkout@main
         with:
           repository: vexxhost/nova-scheduler-filters
-          ref: 77ed1c2ca70f4166a6d0995c7d3d90822f0ca6c0
+          ref: 77ed1c2ca70f4166a6d0995c7d3d90822f0ca6c0 # main
 
       - uses: vexxhost/docker-atmosphere/.github/actions/build-image@main
         with:
