@@ -3,11 +3,8 @@
 # Atmosphere-Rebuild-Time: 2024-12-17T01:27:44Z
 
 FROM ghcr.io/vexxhost/openstack-venv-builder:main@sha256:bff09007027c2b6b908e2e970fe5cf06a4c025848e69bad73aa4970aff4978e2 AS build
-COPY --from=nova --link . /src/nova
-RUN git -C /src/nova fetch --unshallow
-COPY --from=nova-scheduler-filters --link . /src/nova-scheduler-filters
-ARG UV_CACHE_ID=uv-default
-RUN --mount=type=cache,id=${UV_CACHE_ID},target=/root/.cache/uv <<EOF bash -xe
+RUN --mount=type=bind,from=nova,source=/,target=/src/nova,readwrite \
+    --mount=type=bind,from=nova-scheduler-filters,source=/,target=/src/nova-scheduler-filters,readwrite <<EOF bash -xe
 uv pip install \
     --constraint /upper-constraints.txt \
         /src/nova \
