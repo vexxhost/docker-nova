@@ -20,7 +20,7 @@ jobs:
       - uses: vexxhost/docker-atmosphere/.github/actions/checkout@main
         with:
           repository: openstack/nova
-          ref: 7579dbdf0e721707e7c6b0e705a2763c0a3fdd95 # master
+          ref: 5ac48468ace9efcc2dae77573816af41a6c1ec69 # master
 
       - uses: vexxhost/docker-atmosphere/.github/actions/checkout@main
         with:
