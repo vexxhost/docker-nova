@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Atmosphere-Rebuild-Time: 2024-12-17T01:27:44Z
 
-FROM ghcr.io/vexxhost/openstack-venv-builder:zed@sha256:080dc0e8348e107ab7ffdc2a3aded20f7ddea6718f733e9ceeb5a1b886d8abf5 AS build
+FROM ghcr.io/vexxhost/openstack-venv-builder:zed@sha256:3a4779b67529da90ec42bdafe68755d2a20549c8c698d85af09be6993755fe27 AS build
 RUN --mount=type=bind,from=nova,source=/,target=/src/nova,readwrite \
     --mount=type=bind,from=nova-scheduler-filters,source=/,target=/src/nova-scheduler-filters,readwrite <<EOF bash -xe
 uv pip install \
