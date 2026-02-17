@@ -2,8 +2,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 FROM ghcr.io/vexxhost/openstack-venv-builder:2025.2@sha256:22b5d3237345c9603583e08b59240c59737682170db11c1e7510c68fa0f06ee9 AS build
+COPY patches /patches
 RUN --mount=type=bind,from=nova,source=/,target=/src/nova,readwrite \
     --mount=type=bind,from=nova-scheduler-filters,source=/,target=/src/nova-scheduler-filters,readwrite <<EOF bash -xe
+cd /src/nova
+for patch in /patches/openstack/nova/*.patch; do
+    [ -f "\$patch" ] && patch -p1 < "\$patch"
+done
+cd /
 uv pip install \
     --constraint /upper-constraints.txt \
         /src/nova \
