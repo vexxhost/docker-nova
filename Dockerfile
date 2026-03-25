@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2025 VEXXHOST, Inc.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-FROM ghcr.io/vexxhost/openstack-venv-builder:2025.2@sha256:955b242a6f6782877e1a39b074a09ebaf42909ea86f9736d3d62faefd444ace1 AS build
+FROM ghcr.io/vexxhost/openstack-venv-builder:2025.2@sha256:322889aafe3007c77ad34ce76639ea2af0dc3fb37772c5f8082a01a76825f89c AS build
 RUN --mount=type=bind,from=nova,source=/,target=/src/nova,readwrite \
     --mount=type=bind,from=nova-scheduler-filters,source=/,target=/src/nova-scheduler-filters,readwrite <<EOF bash -xe
 uv pip install \
