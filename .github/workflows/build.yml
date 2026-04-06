@@ -17,17 +17,17 @@ jobs:
       packages: write
       pull-requests: write
     steps:
-      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@main
+      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@01f39b179e76b7da3831bb70bef15e817df49590 # main
         with:
           repository: openstack/nova
           ref: 911cc31b8cbbee9088a5c7b30ed34f3f2a327b3d # unmaintained/2023.1
 
-      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@main
+      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@01f39b179e76b7da3831bb70bef15e817df49590 # main
         with:
           repository: vexxhost/nova-scheduler-filters
           ref: ceb2d182c0600134f97bcfef15caf0b05fe0477a # main
 
-      - uses: vexxhost/docker-atmosphere/.github/actions/build-image@main
+      - uses: vexxhost/docker-atmosphere/.github/actions/build-image@01f39b179e76b7da3831bb70bef15e817df49590 # main
         with:
           image-name: nova
           build-contexts: |
