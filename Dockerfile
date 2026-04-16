@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Atmosphere-Rebuild-Time: 2024-12-17T01:27:44Z
 
-FROM ghcr.io/vexxhost/openstack-venv-builder:main@sha256:7ec747363675a8d578753738df9a75442621e8fc7800448072a753d00f46e539 AS build
+FROM ghcr.io/vexxhost/openstack-venv-builder:main@sha256:4c1174498411ac8ea319f68bccdacb0228b53cba058c9121771ec033ef946ff1 AS build
 RUN --mount=type=bind,from=nova,source=/,target=/src/nova,readwrite \
     --mount=type=bind,from=nova-scheduler-filters,source=/,target=/src/nova-scheduler-filters,readwrite <<EOF bash -xe
 uv pip install \
@@ -17,7 +17,7 @@ ADD --chmod=644 \
     https://github.com/storpool/storpool-openstack-integration/raw/master/drivers/os_brick/openstack/caracal/storpool.py \
     /var/lib/openstack/lib/python3.12/site-packages/os_brick/initiator/connectors/storpool.py
 
-FROM ghcr.io/vexxhost/python-base:main@sha256:2b99932cad0f72adb4eb09e66bd423e6a766d019d4f66fe0897469b36a84877b
+FROM ghcr.io/vexxhost/python-base:main@sha256:daf9f5674de25987d34d94f3731819a14f3fc7018067004bd3e20ad0f113e1de
 RUN \
     groupadd -g 42424 nova && \
     useradd -u 42424 -g 42424 -M -d /var/lib/nova -s /usr/sbin/nologin -c "Nova User" nova && \
