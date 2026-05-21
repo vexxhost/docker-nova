@@ -17,7 +17,7 @@ ADD --chmod=644 \
     https://github.com/storpool/storpool-openstack-integration/raw/master/drivers/os_brick/openstack/caracal/storpool.py \
     /var/lib/openstack/lib/python3.12/site-packages/os_brick/initiator/connectors/storpool.py
 
-FROM ghcr.io/vexxhost/python-base:2026.1@sha256:38b3a257ff3e1c846a3696b2cf5716981a724c367b0242d7eb334ffd0100584a
+FROM ghcr.io/vexxhost/python-base:2026.1@sha256:82439a1ff5b5c1f1e70ea937f4ea47e4b892f29818e5e5016262f888eb537054
 RUN \
     groupadd -g 42424 nova && \
     useradd -u 42424 -g 42424 -M -d /var/lib/nova -s /usr/sbin/nologin -c "Nova User" nova && \
