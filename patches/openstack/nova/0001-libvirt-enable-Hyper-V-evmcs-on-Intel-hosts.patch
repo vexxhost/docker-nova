@@ -1,0 +1,129 @@
+From 08ef7f3aaf12253c2460d31f275517b7d89de4a1 Mon Sep 17 00:00:00 2001
+From: Yaguang Tang <heut2008@gmail.com>
+Date: Wed, 1 Jul 2026 09:22:07 +0800
+Subject: [PATCH] libvirt: enable Hyper-V evmcs on Intel hosts
+
+Enable the Hyper-V evmcs enlightenment for Windows guests when
+libvirt reports an Intel host CPU vendor, while leaving it
+disabled on non-Intel hosts where the guest cannot be started.
+
+Add unit coverage for both Intel and AMD host vendors and
+document the behavior change in a release note.
+
+Change-Id: I60da4e6883b711126026fc73aa15c0d7354fb306
+Signed-off-by: Yaguang Tang <heut2008@gmail.com>
+---
+ nova/tests/unit/virt/libvirt/test_driver.py   | 45 ++++++++++++++-----
+ nova/virt/libvirt/driver.py                   | 12 +++++
+ ...evmcs-on-intel-hosts-b59cf1590c20ce0a.yaml |  6 +++
+ 3 files changed, 53 insertions(+), 10 deletions(-)
+ create mode 100644 releasenotes/notes/libvirt-enable-evmcs-on-intel-hosts-b59cf1590c20ce0a.yaml
+
+diff --git a/nova/tests/unit/virt/libvirt/test_driver.py b/nova/tests/unit/virt/libvirt/test_driver.py
+index b22749b77f..0f15891863 100644
+--- a/nova/tests/unit/virt/libvirt/test_driver.py
++++ b/nova/tests/unit/virt/libvirt/test_driver.py
+@@ -30756,13 +30756,18 @@ class LibvirtDriverTestCase(test.NoDBTestCase, TraitsComparisonMixin):
+     def test_set_features_windows(self):
+         self.flags(virt_type='kvm', group='libvirt')
+         guest = vconfig.LibvirtConfigGuest()
+-        self.drvr._set_features(
+-            guest, 'windows',
+-            objects.ImageMeta(
+-                properties=objects.ImageMetaProps()
+-            ),
+-            objects.Flavor(extra_specs={})
+-        )
++        caps = mock.Mock()
++        caps.host.cpu.vendor = 'Intel'
++        with mock.patch.object(
++            self.drvr._host, 'get_capabilities', return_value=caps,
++        ):
++            self.drvr._set_features(
++                guest, 'windows',
++                objects.ImageMeta(
++                    properties=objects.ImageMetaProps()
++                ),
++                objects.Flavor(extra_specs={})
++            )
+         features = guest.features
+         hv = None
+         for feature in features:
+@@ -30782,9 +30787,29 @@ class LibvirtDriverTestCase(test.NoDBTestCase, TraitsComparisonMixin):
+         self.assertFalse(hv.reenlightenment)
+         self.assertTrue(hv.tlbflush)
+         self.assertTrue(hv.ipi)
+-        # NOTE(artom) evmcs only works on Intel hosts, so we can't enable it
+-        # unconditionally. Until we become smarter about it, just don't enable
+-        # it at all. See bug 2009280.
++        self.assertTrue(hv.evmcs)
++
++    def test_set_features_windows_amd_host(self):
++        self.flags(virt_type='kvm', group='libvirt')
++        guest = vconfig.LibvirtConfigGuest()
++        caps = mock.Mock()
++        caps.host.cpu.vendor = 'AMD'
++        with mock.patch.object(
++            self.drvr._host, 'get_capabilities', return_value=caps,
++        ):
++            self.drvr._set_features(
++                guest, 'windows',
++                objects.ImageMeta(
++                    properties=objects.ImageMetaProps()
++                ),
++                objects.Flavor(extra_specs={})
++            )
++        features = guest.features
++        hv = None
++        for feature in features:
++            if feature.root_name == 'hyperv':
++                hv = feature
++        self.assertIsNotNone(hv)
+         self.assertFalse(hv.evmcs)
+ 
+     def test_get_pci_passthrough_devices_lru_cache_called_once(self):
+diff --git a/nova/virt/libvirt/driver.py b/nova/virt/libvirt/driver.py
+index 1a37ea7396..f026efe4ff 100644
+--- a/nova/virt/libvirt/driver.py
++++ b/nova/virt/libvirt/driver.py
+@@ -6739,6 +6739,15 @@ class LibvirtDriver(driver.ComputeDriver):
+             tmhyperv.present = True
+             clk.add_timer(tmhyperv)
+ 
++    def _host_cpu_vendor_is_intel(self):
++        caps = self._host.get_capabilities()
++        vendor = getattr(getattr(caps.host, 'cpu', None), 'vendor', None)
++
++        if not vendor:
++            return False
++
++        return vendor.casefold() in ('intel', 'genuineintel')
++
+     def _set_features(self, guest, os_type, image_meta, flavor):
+         hide_hypervisor_id = (strutils.bool_from_string(
+                 flavor.extra_specs.get('hide_hypervisor_id')) or
+@@ -6776,6 +6785,9 @@ class LibvirtDriver(driver.ComputeDriver):
+             hv.frequencies = True
+             hv.tlbflush = True
+             hv.ipi = True
++            # evmcs only works on Intel hosts; enabling it elsewhere prevents
++            # libvirt from starting the guest. See bug 2009280.
++            hv.evmcs = self._host_cpu_vendor_is_intel()
+ 
+             # NOTE(kosamara): Spoofing the vendor_id aims to allow the nvidia
+             # driver to work on windows VMs. At the moment, the nvidia driver
+diff --git a/releasenotes/notes/libvirt-enable-evmcs-on-intel-hosts-b59cf1590c20ce0a.yaml b/releasenotes/notes/libvirt-enable-evmcs-on-intel-hosts-b59cf1590c20ce0a.yaml
+new file mode 100644
+index 0000000000..b0883f9af4
+--- /dev/null
++++ b/releasenotes/notes/libvirt-enable-evmcs-on-intel-hosts-b59cf1590c20ce0a.yaml
+@@ -0,0 +1,6 @@
++---
++features:
++  - |
++    The libvirt driver now enables the Hyper-V ``evmcs`` enlightenment for
++    Windows guests on Intel hosts. Nova continues to leave ``evmcs`` disabled
++    on non-Intel hosts because libvirt cannot start those guests on AMD CPUs.
+-- 
+2.50.1 (Apple Git-155)
+
