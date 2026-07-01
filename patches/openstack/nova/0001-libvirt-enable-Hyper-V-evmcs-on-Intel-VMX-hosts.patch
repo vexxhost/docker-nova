@@ -1,0 +1,298 @@
+From d57a7eeaace810a59384c1bed65d8860ec57b9b1 Mon Sep 17 00:00:00 2001
+From: Yaguang Tang <heut2008@gmail.com>
+Date: Wed, 1 Jul 2026 09:22:07 +0800
+Subject: [PATCH] libvirt: enable Hyper-V evmcs on Intel VMX hosts
+
+Enable the Hyper-V eVMCS enlightenment for Windows guests only
+when the hw_hyperv_evmcs image property requests it.
+
+When requested, the scheduler requires HW_CPU_X86_INTEL_VMX,
+so Placement limits builds and migrations to compatible Intel VMX
+compute hosts. The libvirt driver then enables eVMCS as requested,
+letting libvirt fail a forced placement to an incompatible host
+instead of silently disabling it.
+
+Add unit coverage for the opt-in behavior and scheduler trait
+request, and document the image property.
+
+Signed-off-by: Yaguang Tang <heut2008@gmail.com>
+Change-Id: I60da4e6883b711126026fc73aa15c0d7354fb306
+---
+ .../ImageMetaPropsPayload.json                |  2 +-
+ .../admin/configuration/hypervisor-kvm.rst    |  8 ++++++
+ nova/notifications/objects/image.py           |  3 ++-
+ nova/objects/image_meta.py                    |  8 +++++-
+ nova/scheduler/utils.py                       |  3 +++
+ .../test_instance.py                          |  4 +--
+ .../objects/test_notification.py              |  2 +-
+ nova/tests/unit/objects/test_image_meta.py    | 11 ++++++++
+ nova/tests/unit/objects/test_objects.py       |  2 +-
+ nova/tests/unit/scheduler/test_utils.py       | 25 +++++++++++++++++++
+ nova/tests/unit/virt/libvirt/test_driver.py   | 19 +++++++++++---
+ nova/virt/libvirt/driver.py                   |  1 +
+ ...evmcs-on-intel-hosts-b59cf1590c20ce0a.yaml |  7 ++++++
+ 13 files changed, 85 insertions(+), 10 deletions(-)
+ create mode 100644 releasenotes/notes/libvirt-enable-evmcs-on-intel-hosts-b59cf1590c20ce0a.yaml
+
+diff --git a/doc/notification_samples/common_payloads/ImageMetaPropsPayload.json b/doc/notification_samples/common_payloads/ImageMetaPropsPayload.json
+index 9353b6d490..41f2a341a2 100644
+--- a/doc/notification_samples/common_payloads/ImageMetaPropsPayload.json
++++ b/doc/notification_samples/common_payloads/ImageMetaPropsPayload.json
+@@ -4,5 +4,5 @@
+         "hw_architecture": "x86_64"
+     },
+     "nova_object.name": "ImageMetaPropsPayload",
+-    "nova_object.version": "1.19"
++    "nova_object.version": "1.20"
+ }
+diff --git a/doc/source/admin/configuration/hypervisor-kvm.rst b/doc/source/admin/configuration/hypervisor-kvm.rst
+index fdadde32f9..ed0804068b 100644
+--- a/doc/source/admin/configuration/hypervisor-kvm.rst
++++ b/doc/source/admin/configuration/hypervisor-kvm.rst
+@@ -383,6 +383,14 @@ See `the KVM documentation
+ <https://www.linux-kvm.org/page/Nested_Guests#Limitations>`_ for more
+ information on these limitations.
+ 
++Hyper-V enlightened VMCS
++~~~~~~~~~~~~~~~~~~~~~~~~
++
++For Windows guests on Intel hosts, Hyper-V enlightened VMCS (eVMCS) can be
++enabled by setting the ``hw_hyperv_evmcs=true`` image property. Nova adds the
++``HW_CPU_X86_INTEL_VMX`` trait to the scheduler request, ensuring it selects
++only compatible Intel VMX compute hosts for builds and migrations.
++
+ 
+ KVM performance tweaks
+ ----------------------
+diff --git a/nova/notifications/objects/image.py b/nova/notifications/objects/image.py
+index e81359becf..a35c0d747b 100644
+--- a/nova/notifications/objects/image.py
++++ b/nova/notifications/objects/image.py
+@@ -137,7 +137,8 @@ class ImageMetaPropsPayload(base.NotificationPayloadBase):
+     # Version 1.17: Added 'hw_usb_model' and 'hw_redirected_usb_ports' fields
+     # Version 1.18: Added 'hw_mem_encryption_model' field
+     # Version 1.19: Added 'amd-sev-snp' as an option to hw_mem_encryption_model
+-    VERSION = '1.19'
++    # Version 1.20: Added 'hw_hyperv_evmcs' field
++    VERSION = '1.20'
+ 
+     # NOTE(efried): This logic currently relies on all of the fields of
+     # ImageMetaProps being initialized with no arguments. See the docstring.
+diff --git a/nova/objects/image_meta.py b/nova/objects/image_meta.py
+index 7f8968b0ed..c549129d9f 100644
+--- a/nova/objects/image_meta.py
++++ b/nova/objects/image_meta.py
+@@ -207,15 +207,18 @@ class ImageMetaProps(base.NovaObject):
+     # Version 1.41: Added 'hw_usb_model' and 'hw_redirected_usb_ports' fields
+     # Version 1.42: Added 'hw_mem_encryption_model' field
+     # Version 1.43: Added 'amd-sev-snp' as an option to hw_mem_encryption_model
++    # Version 1.44: Added 'hw_hyperv_evmcs' field
+ 
+     # NOTE(efried): When bumping this version, the version of
+     # ImageMetaPropsPayload must also be bumped. See its docstring for details.
+-    VERSION = '1.43'
++    VERSION = '1.44'
+ 
+     def obj_make_compatible(self, primitive, target_version):  # noqa: C901
+         super(ImageMetaProps, self).obj_make_compatible(primitive,
+                                                         target_version)
+         target_version = versionutils.convert_version_to_tuple(target_version)
++        if target_version < (1, 44):
++            primitive.pop('hw_hyperv_evmcs', None)
+         if target_version < (1, 43):
+             base.raise_on_too_new_values(
+                 target_version, primitive,
+@@ -399,6 +402,9 @@ class ImageMetaProps(base.NovaObject):
+         # This indicates the guest needs stateless firmware
+         'hw_firmware_stateless': fields.FlexibleBooleanField(),
+ 
++        # boolean - enable the Hyper-V enlightened VMCS feature
++        'hw_hyperv_evmcs': fields.FlexibleBooleanField(),
++
+         # name of the input bus type to use, e.g. usb, virtio
+         'hw_input_bus': fields.InputBusField(),
+ 
+diff --git a/nova/scheduler/utils.py b/nova/scheduler/utils.py
+index e8d832574e..66916f5fc7 100644
+--- a/nova/scheduler/utils.py
++++ b/nova/scheduler/utils.py
+@@ -266,6 +266,9 @@ class ResourceRequest(object):
+             # supported in image traits
+             self._add_trait(trait, 'required')
+ 
++        if image.properties.get('hw_hyperv_evmcs', False):
++            self._add_trait(os_traits.HW_CPU_X86_INTEL_VMX, 'required')
++
+     def _translate_secure_boot_request(self, flavor, image):
+         sb_policy = hardware.get_secure_boot_constraint(flavor, image)
+         if sb_policy != obj_fields.SecureBoot.REQUIRED:
+diff --git a/nova/tests/functional/notification_sample_tests/test_instance.py b/nova/tests/functional/notification_sample_tests/test_instance.py
+index bf0942be7e..08f43dcfcb 100644
+--- a/nova/tests/functional/notification_sample_tests/test_instance.py
++++ b/nova/tests/functional/notification_sample_tests/test_instance.py
+@@ -1244,7 +1244,7 @@ class TestInstanceNotificationSample(
+                     'nova_object.data': {},
+                     'nova_object.name': 'ImageMetaPropsPayload',
+                     'nova_object.namespace': 'nova',
+-                    'nova_object.version': '1.19',
++                    'nova_object.version': '1.20',
+                 },
+                 'image.size': 58145823,
+                 'image.tags': [],
+@@ -1340,7 +1340,7 @@ class TestInstanceNotificationSample(
+                     'nova_object.data': {},
+                     'nova_object.name': 'ImageMetaPropsPayload',
+                     'nova_object.namespace': 'nova',
+-                    'nova_object.version': '1.19',
++                    'nova_object.version': '1.20',
+                 },
+                 'image.size': 58145823,
+                 'image.tags': [],
+diff --git a/nova/tests/unit/notifications/objects/test_notification.py b/nova/tests/unit/notifications/objects/test_notification.py
+index b8eeb9c752..4a3c1662f5 100644
+--- a/nova/tests/unit/notifications/objects/test_notification.py
++++ b/nova/tests/unit/notifications/objects/test_notification.py
+@@ -385,7 +385,7 @@ notification_object_data = {
+     # ImageMetaProps, so when you see a fail here for that reason, you must
+     # *also* bump the version of ImageMetaPropsPayload. See its docstring for
+     # more information.
+-    'ImageMetaPropsPayload': '1.19-473614bfe8a179dbe4f95334193334c3',
++    'ImageMetaPropsPayload': '1.20-6b6376e2a7c9cfa9c0e071f410ab017b',
+     'InstanceActionNotification': '1.0-a73147b93b520ff0061865849d3dfa56',
+     'InstanceActionPayload': '1.9-525dcf81b6e4592d935712a2675309dc',
+     'InstanceActionRebuildNotification':
+diff --git a/nova/tests/unit/objects/test_image_meta.py b/nova/tests/unit/objects/test_image_meta.py
+index 37ccae2991..57d98c13a2 100644
+--- a/nova/tests/unit/objects/test_image_meta.py
++++ b/nova/tests/unit/objects/test_image_meta.py
+@@ -693,3 +693,14 @@ class TestImageMetaProps(test.NoDBTestCase):
+                                obj.obj_to_primitive, '1.42')
+         self.assertIn('hw_mem_encryption_model=amd-sev-snp not supported',
+                       str(ex))
++
++    def test_obj_make_compatible_hyperv_evmcs(self):
++        """Check 'hw_hyperv_evmcs' compatibility."""
++        obj = objects.ImageMetaProps(hw_hyperv_evmcs=True)
++
++        primitive = obj.obj_to_primitive('1.44')
++        self.assertIn('hw_hyperv_evmcs', primitive['nova_object.data'])
++        self.assertTrue(primitive['nova_object.data']['hw_hyperv_evmcs'])
++
++        primitive = obj.obj_to_primitive('1.43')
++        self.assertNotIn('hw_hyperv_evmcs', primitive['nova_object.data'])
+diff --git a/nova/tests/unit/objects/test_objects.py b/nova/tests/unit/objects/test_objects.py
+index d4e6db88b7..908337074c 100644
+--- a/nova/tests/unit/objects/test_objects.py
++++ b/nova/tests/unit/objects/test_objects.py
+@@ -1105,7 +1105,7 @@ object_data = {
+     'HyperVLiveMigrateData': '1.5-b424b27305f259fb3c15d720856585c7',
+     'IDEDeviceBus': '1.0-29d4c9f27ac44197f01b6ac1b7e16502',
+     'ImageMeta': '1.8-642d1b2eb3e880a367f37d72dd76162d',
+-    'ImageMetaProps': '1.43-4a5ae3aad555458103fe5dbee297341d',
++    'ImageMetaProps': '1.44-616e6dc3ae650762fbabd87ef1ab054a',
+     'Instance': '2.8-2727dba5e4a078e6cc848c1f94f7eb24',
+     'InstanceAction': '1.2-9a5abc87fdd3af46f45731960651efb5',
+     'InstanceActionEvent': '1.4-5b1f361bd81989f8bb2c20bb7e8a4cb4',
+diff --git a/nova/tests/unit/scheduler/test_utils.py b/nova/tests/unit/scheduler/test_utils.py
+index 6462075767..b44072b839 100644
+--- a/nova/tests/unit/scheduler/test_utils.py
++++ b/nova/tests/unit/scheduler/test_utils.py
+@@ -15,6 +15,7 @@ from unittest import mock
+ 
+ import ddt
+ import os_resource_classes as orc
++import os_traits
+ from oslo_serialization import jsonutils
+ from oslo_utils.fixture import uuidsentinel as uuids
+ 
+@@ -163,6 +164,30 @@ class TestUtils(TestUtilsBase):
+         self._test_resources_from_request_spec(expected_resources, flavor,
+                                                image)
+ 
++    def test_resources_from_request_spec_hyperv_evmcs(self):
++        image = objects.ImageMeta.from_dict({
++            'properties': {
++                'hw_hyperv_evmcs': 'true',
++            },
++            'id': 'c8b1790e-a07d-4971-b137-44f2432936cd',
++        })
++        flavor = objects.Flavor(
++            vcpus=1, memory_mb=1024, root_gb=10, ephemeral_gb=5, swap=0)
++        expected_resources = FakeResourceRequest()
++        expected_resources._rg_by_id[None] = objects.RequestGroup(
++            use_same_provider=False,
++            resources={
++                'VCPU': 1,
++                'MEMORY_MB': 1024,
++                'DISK_GB': 15,
++            },
++            required_traits={
++                os_traits.HW_CPU_X86_INTEL_VMX,
++            },
++        )
++        self._test_resources_from_request_spec(expected_resources, flavor,
++                                               image)
++
+     def test_resources_from_request_spec_flavor_forbidden_trait(self):
+         flavor = objects.Flavor(vcpus=1,
+                                 memory_mb=1024,
+diff --git a/nova/tests/unit/virt/libvirt/test_driver.py b/nova/tests/unit/virt/libvirt/test_driver.py
+index 685e5bfd59..81ad65d651 100644
+--- a/nova/tests/unit/virt/libvirt/test_driver.py
++++ b/nova/tests/unit/virt/libvirt/test_driver.py
+@@ -31121,11 +31121,24 @@ class LibvirtDriverTestCase(test.NoDBTestCase, TraitsComparisonMixin):
+         self.assertFalse(hv.reenlightenment)
+         self.assertTrue(hv.tlbflush)
+         self.assertTrue(hv.ipi)
+-        # NOTE(artom) evmcs only works on Intel hosts, so we can't enable it
+-        # unconditionally. Until we become smarter about it, just don't enable
+-        # it at all. See bug 2009280.
+         self.assertFalse(hv.evmcs)
+ 
++    def test_set_features_windows_evmcs(self):
++        self.flags(virt_type='kvm', group='libvirt')
++        guest = vconfig.LibvirtConfigGuest()
++        self.drvr._set_features(
++            guest, 'windows',
++            objects.ImageMeta(
++                properties=objects.ImageMetaProps(hw_hyperv_evmcs=True)
++            ),
++            objects.Flavor(extra_specs={})
++        )
++        hv = next(
++            feature for feature in guest.features
++            if feature.root_name == 'hyperv'
++        )
++        self.assertTrue(hv.evmcs)
++
+     def test_get_pci_passthrough_devices_lru_cache_called_once(self):
+         drvr = libvirt_driver.LibvirtDriver(fake.FakeVirtAPI(), True)
+         with mock.patch.object(drvr._host, 'list_all_devices',
+diff --git a/nova/virt/libvirt/driver.py b/nova/virt/libvirt/driver.py
+index 6f037bfbc9..9de576ccea 100644
+--- a/nova/virt/libvirt/driver.py
++++ b/nova/virt/libvirt/driver.py
+@@ -6908,6 +6908,7 @@ class LibvirtDriver(driver.ComputeDriver):
+             hv.frequencies = True
+             hv.tlbflush = True
+             hv.ipi = True
++            hv.evmcs = image_meta.properties.get('hw_hyperv_evmcs', False)
+ 
+             # NOTE(kosamara): Spoofing the vendor_id aims to allow the nvidia
+             # driver to work on windows VMs. At the moment, the nvidia driver
+diff --git a/releasenotes/notes/libvirt-enable-evmcs-on-intel-hosts-b59cf1590c20ce0a.yaml b/releasenotes/notes/libvirt-enable-evmcs-on-intel-hosts-b59cf1590c20ce0a.yaml
+new file mode 100644
+index 0000000000..7200a2fc42
+--- /dev/null
++++ b/releasenotes/notes/libvirt-enable-evmcs-on-intel-hosts-b59cf1590c20ce0a.yaml
+@@ -0,0 +1,7 @@
++---
++features:
++  - |
++    The libvirt driver can now enable the Hyper-V ``evmcs`` enlightenment for
++    Windows guests when the image has ``hw_hyperv_evmcs=true``. Nova requires
++    the ``HW_CPU_X86_INTEL_VMX`` trait for these instances, limiting builds
++    and migrations to compatible Intel VMX compute hosts.
+-- 
+2.50.1 (Apple Git-155)
+
