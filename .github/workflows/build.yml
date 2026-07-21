@@ -25,17 +25,17 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@2b0040e59869e408a94f1e92e67fa47035c50336 # main
+      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@e72a4bb3670421e6ec38413e3e90b11259d86ea1 # main
         with:
           repository: openstack/nova
           ref: 4d9d8caff2e4b1811bab4b9d6f9ddeae9e88c5b2 # master
 
-      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@2b0040e59869e408a94f1e92e67fa47035c50336 # main
+      - uses: vexxhost/docker-atmosphere/.github/actions/checkout@e72a4bb3670421e6ec38413e3e90b11259d86ea1 # main
         with:
           repository: vexxhost/nova-scheduler-filters
           ref: ceb2d182c0600134f97bcfef15caf0b05fe0477a # main
 
-      - uses: vexxhost/docker-atmosphere/.github/actions/build-image@2b0040e59869e408a94f1e92e67fa47035c50336 # main
+      - uses: vexxhost/docker-atmosphere/.github/actions/build-image@e72a4bb3670421e6ec38413e3e90b11259d86ea1 # main
         with:
           image-name: nova
           build-contexts: |
