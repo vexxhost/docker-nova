@@ -1,12 +1,12 @@
 # SPDX-FileCopyrightText: © 2025 VEXXHOST, Inc.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-FROM ghcr.io/vexxhost/openstack-venv-builder:2025.2@sha256:5528f59558327af1bfd74b440ddeeb112f5163ba234007e27fab82037da41192 AS build
-RUN --mount=type=bind,from=nova,source=/,target=/src/nova,readwrite \
-    --mount=type=bind,from=nova-scheduler-filters,source=/,target=/src/nova-scheduler-filters,readwrite <<EOF bash -xe
+FROM ghcr.io/vexxhost/openstack-venv-builder:2025.2@sha256:138d385ed231aa7c980905b261548eaeb2a3c466c4d428aba45c258ab259363c AS build
+ARG NOVA_VERSION=32.2.1+a8e.2.3
+RUN --mount=type=bind,from=nova-scheduler-filters,source=/,target=/src/nova-scheduler-filters,readwrite <<EOF bash -xe
 uv pip install \
     --constraint /upper-constraints.txt \
-        /src/nova \
+        "nova==${NOVA_VERSION}" \
         /src/nova-scheduler-filters \
         python-ironicclient \
         storpool \
