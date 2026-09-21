@@ -10,6 +10,7 @@ uv pip install \
         "nova==${NOVA_VERSION}" \
         /src/nova-scheduler-filters \
         python-ironicclient \
+        pyroute2 \
         storpool \
         storpool.spopenstack
 EOF
