@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2025 VEXXHOST, Inc.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-FROM ghcr.io/vexxhost/openstack-venv-builder:2025.2@sha256:efd33c6aa5e6302c1fe73ce267cd418d7cc83fc94b3993a83c3b92a15bb906ea AS build
+FROM ghcr.io/vexxhost/openstack-venv-builder:2025.2@sha256:f0d2169bd69ea53b8da5bfb2ccd3b769508cef0dede51d79598c75b910e6c1ec AS build
 ARG NOVA_VERSION=32.2.1+a8e.2.3
 RUN --mount=type=bind,from=nova-scheduler-filters,source=/,target=/src/nova-scheduler-filters,readwrite <<EOF bash -xe
 uv pip install \
@@ -16,7 +16,7 @@ ADD --chmod=644 \
     https://github.com/storpool/storpool-openstack-integration/raw/master/drivers/os_brick/openstack/caracal/storpool.py \
     /var/lib/openstack/lib/python3.12/site-packages/os_brick/initiator/connectors/storpool.py
 
-FROM ghcr.io/vexxhost/python-base:2025.2@sha256:fe5beb4ae985c67660efa623d4488fdb10dc1c7c76675739a226efb9b1bd29af
+FROM ghcr.io/vexxhost/python-base:2025.2@sha256:f2ca2efa8aacd4791fa3a6225e22ee8349a9546e07bf41703bab85f52fcd90fd
 RUN \
     groupadd -g 42424 nova && \
     useradd -u 42424 -g 42424 -M -d /var/lib/nova -s /usr/sbin/nologin -c "Nova User" nova && \
